@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Board } from "./Board"
-import { COLS, type GameState } from "@/game/types"
+import { PlayerStatusBar } from "./PlayerStatusBar"
+import type { GameState } from "@/game/types"
 import {
   createInitialState,
   movePlayer,
@@ -12,33 +13,34 @@ import {
   tickMovement,
   updateGame,
 } from "@/game/gameEngine"
+import { useCellSize } from "@/hooks/useCellSize"
 
 const GAME_KEYS = new Set([
-  "w", "a", "s", "d", " ",
-  "arrowup", "arrowdown", "arrowleft", "arrowright", "enter",
+  "w",
+  "a",
+  "s",
+  "d",
+  " ",
+  "arrowup",
+  "arrowdown",
+  "arrowleft",
+  "arrowright",
+  "enter",
 ])
 
-function computeCellSize(): number {
-  if (typeof window === "undefined") return 40
-  const available = Math.min(window.innerWidth - 32, 560)
-  return Math.max(24, Math.min(40, Math.floor(available / COLS)))
-}
-
 export function BombermanGame() {
-  // Start null so the random board is generated only on the client. This avoids
-  // an SSR/client hydration mismatch caused by Math.random() in the generator.
+  // Start null so the random board is generated only on the client.
+  // This avoids an SSR/client hydration mismatch caused by Math.random() in createGrid().
   const [state, setState] = useState<GameState | null>(null)
-  const [cellSize, setCellSize] = useState(40)
-  // Bumped each frame while bombs are live, to drive the fuse pulse animation.
   const [renderNow, setRenderNow] = useState(0)
 
   const stateRef = useRef<GameState | null>(state)
   const pressedKeys = useRef<Set<string>>(new Set())
+  const cellSize = useCellSize()
 
-  // Keep a synchronous mirror of the latest state for event handlers + loop.
   stateRef.current = state
 
-  // Generate the initial board after mount (client only).
+  // Initialise the board after mount (client only).
   useEffect(() => {
     const fresh = createInitialState()
     stateRef.current = fresh
@@ -50,14 +52,6 @@ export function BombermanGame() {
     const fresh = createInitialState()
     stateRef.current = fresh
     setState(fresh)
-  }, [])
-
-  // Responsive cell sizing.
-  useEffect(() => {
-    const update = () => setCellSize(computeCellSize())
-    update()
-    window.addEventListener("resize", update)
-    return () => window.removeEventListener("resize", update)
   }, [])
 
   // Keyboard input.
@@ -73,7 +67,6 @@ export function BombermanGame() {
       if (!action) return
 
       if (action.type === "bomb") {
-        // Bombs fire once per press, not on held repeat.
         const next = placeBomb(stateRef.current, action.playerId, Date.now())
         stateRef.current = next
         setState(next)
@@ -142,7 +135,11 @@ export function BombermanGame() {
 
   if (!state) {
     return (
-      <div className="flex h-[440px] w-full items-center justify-center text-sm text-muted-foreground">
+      <div
+        className="flex h-[440px] w-full items-center justify-center text-sm text-muted-foreground"
+        role="status"
+        aria-label="Loading game"
+      >
         Loading game…
       </div>
     )
@@ -172,33 +169,6 @@ export function BombermanGame() {
   )
 }
 
-function PlayerStatusBar({ state }: { state: GameState }) {
-  return (
-    <div className="flex w-full max-w-[560px] items-center justify-center gap-4">
-      {state.players.map((player) => (
-        <div
-          key={player.id}
-          className="flex flex-1 items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3"
-        >
-          <div className="flex items-center gap-2">
-            <span className={`h-4 w-4 rounded-full ${player.colorClass}`} aria-hidden />
-            <span className="font-semibold text-card-foreground">{player.name}</span>
-          </div>
-          <span
-            className={
-              player.alive
-                ? "text-sm font-medium text-game-p2"
-                : "text-sm font-medium text-destructive"
-            }
-          >
-            {player.alive ? "Alive" : "Dead"}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 function Controls() {
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-center text-xs text-muted-foreground">
@@ -206,7 +176,8 @@ function Controls() {
         <span className="font-semibold text-foreground">Player 1:</span> WASD to move, Space to bomb
       </span>
       <span>
-        <span className="font-semibold text-foreground">Player 2:</span> Arrows to move, Enter to bomb
+        <span className="font-semibold text-foreground">Player 2:</span> Arrows to move, Enter to
+        bomb
       </span>
     </div>
   )

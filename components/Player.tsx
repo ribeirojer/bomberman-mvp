@@ -66,7 +66,9 @@ export function Player({ player, cellSize }: PlayerProps) {
               <span className="text-[9px] font-black leading-none text-foreground">x x</span>
             )}
           </div>
-          <span className="absolute -top-2 text-[10px] font-bold text-foreground/80">{player.id}</span>
+          <span className="absolute -top-2 text-[10px] font-bold text-foreground/80">
+            {player.id}
+          </span>
         </div>
       </div>
     </div>

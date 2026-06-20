@@ -125,21 +125,31 @@ function isAligned(player: Player): boolean {
  * current target cell; only once aligned can it commit to the next cell. This
  * yields continuous motion while keeping collision strictly grid-based.
  */
-export function movePlayer(state: GameState, playerId: number, direction: Direction, _now: number): GameState {
+export function movePlayer(
+  state: GameState,
+  playerId: number,
+  direction: Direction,
+  _now: number,
+): GameState {
   if (state.status !== "playing") return state
 
   const player = state.players.find((p) => p.id === playerId)
   if (!player || !player.alive) return state
 
   // Always face the pressed direction, even if blocked.
-  let changed = player.facing !== direction
+  const changed = player.facing !== direction
 
   // Can only pick a new target cell when centered on the current one.
   if (isAligned(player)) {
     const delta = DIRECTION_DELTAS[direction]
-    const target: Position = { row: player.position.row + delta.row, col: player.position.col + delta.col }
+    const target: Position = {
+      row: player.position.row + delta.row,
+      col: player.position.col + delta.col,
+    }
     const open =
-      inBounds(target) && state.grid[target.row][target.col] === "floor" && !hasBombAt(state, target)
+      inBounds(target) &&
+      state.grid[target.row][target.col] === "floor" &&
+      !hasBombAt(state, target)
     if (open) {
       const players = state.players.map((p) =>
         p.id === playerId ? { ...p, position: target, facing: direction } : p,
@@ -243,7 +253,7 @@ export function updateGame(state: GameState, now: number): GameState {
   const exploded = new Set<string>()
   const queue = bombs.filter((b) => now - b.placedAt >= BOMB_FUSE_MS)
   let gridChanged = false
-  let workingGrid = grid.map((line) => [...line])
+  const workingGrid = grid.map((line) => [...line])
 
   while (queue.length > 0) {
     const bomb = queue.shift()!
@@ -296,8 +306,8 @@ export function updateGame(state: GameState, now: number): GameState {
     explosion,
   ]
 
-  let status = state.status
-  let winnerId = state.winnerId
+  let status: GameState["status"] = state.status
+  let winnerId: GameState["winnerId"] = state.winnerId
   const alivePlayers = players.filter((p) => p.alive)
   if (alivePlayers.length <= 1) {
     status = "over"
@@ -314,7 +324,10 @@ export function updateGame(state: GameState, now: number): GameState {
 export function resolveAction(
   players: Player[],
   key: string,
-): { playerId: number; type: "move"; direction: Direction } | { playerId: number; type: "bomb" } | null {
+):
+  | { playerId: number; type: "move"; direction: Direction }
+  | { playerId: number; type: "bomb" }
+  | null {
   const k = key.toLowerCase()
   for (const player of players) {
     const c = player.controls

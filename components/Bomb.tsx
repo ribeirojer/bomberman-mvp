@@ -49,7 +49,12 @@ export function Bomb({ bomb, cellSize, now }: BombProps) {
         {/* spark */}
         <span
           className="absolute left-1/2 -translate-x-1/2 rounded-full bg-game-explosion-core"
-          style={{ top: "-22%", width: "20%", height: "20%", animation: "explosion-core 0.16s infinite" }}
+          style={{
+            top: "-22%",
+            width: "20%",
+            height: "20%",
+            animation: "explosion-core 0.16s infinite",
+          }}
           aria-hidden
         />
       </div>
