@@ -5,9 +5,11 @@ export const COLS = 13
 export const ROWS = 11
 
 export const BOMB_FUSE_MS = 3000 // time before a bomb explodes
-export const EXPLOSION_MS = 500 // how long the explosion visual/hitbox lasts
+export const EXPLOSION_MS = 550 // how long the explosion visual/hitbox lasts
 export const BLAST_RANGE = 2 // tiles affected in each direction
-export const MOVE_COOLDOWN_MS = 130 // throttle for grid-based movement
+export const MOVE_SPEED = 5.5 // continuous movement speed in tiles per second
+/** How close (in tiles) render position must be to its target cell to count as aligned. */
+export const ALIGN_EPSILON = 0.001
 
 export type TileType = "floor" | "wall" | "brick"
 
@@ -29,13 +31,22 @@ export interface PlayerControls {
 export interface Player {
   id: number
   name: string
+  /** Logical target cell (integer). Bombs and blast hits resolve against the
+   *  cell the player is currently closest to. */
   position: Position
+  /** Smooth render position in tile units (floats). x = column, y = row. */
+  x: number
+  y: number
+  /** Direction the character is facing, for sprite orientation. */
+  facing: Direction
+  /** True while the render position is still catching up to its target cell. */
+  moving: boolean
   alive: boolean
+  /** Timestamp the player died, used to drive the death animation. */
+  diedAt?: number
   /** CSS class used to color the player token. */
   colorClass: string
   controls: PlayerControls
-  /** Timestamp of last move, used to throttle movement. */
-  lastMoveAt: number
 }
 
 export interface Bomb {

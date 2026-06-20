@@ -3,13 +3,14 @@
 // and to drive from either local state or a future WebSocket server.
 
 import {
+  ALIGN_EPSILON,
   BLAST_RANGE,
   BOMB_FUSE_MS,
   COLS,
   Direction,
   EXPLOSION_MS,
   GameState,
-  MOVE_COOLDOWN_MS,
+  MOVE_SPEED,
   Player,
   PlayerControls,
   Position,
@@ -79,10 +80,13 @@ export function createInitialState(): GameState {
     id: index + 1,
     name: `Player ${index + 1}`,
     position: { ...spawn },
+    x: spawn.col,
+    y: spawn.row,
+    facing: index === 0 ? "down" : "up",
+    moving: false,
     alive: true,
     colorClass: PLAYER_COLORS[index],
     controls: PLAYER_CONTROLS[index],
-    lastMoveAt: 0,
   }))
 
   return {
@@ -103,28 +107,80 @@ function hasBombAt(state: GameState, pos: Position): boolean {
   return state.bombs.some((b) => b.position.row === pos.row && b.position.col === pos.col)
 }
 
+/** The integer cell a player currently occupies, based on its render position. */
+function occupiedCell(player: Player): Position {
+  return { row: Math.round(player.y), col: Math.round(player.x) }
+}
+
+/** A player can only change target cells when its render position has caught up. */
+function isAligned(player: Player): boolean {
+  return (
+    Math.abs(player.x - player.position.col) < ALIGN_EPSILON &&
+    Math.abs(player.y - player.position.row) < ALIGN_EPSILON
+  )
+}
+
 /**
- * Attempt to move a player one tile in a direction. Movement is grid-based and
- * throttled so holding a key produces steady stepping. Returns a new state.
+ * Register a movement intent for a player. The player keeps gliding toward its
+ * current target cell; only once aligned can it commit to the next cell. This
+ * yields continuous motion while keeping collision strictly grid-based.
  */
-export function movePlayer(state: GameState, playerId: number, direction: Direction, now: number): GameState {
+export function movePlayer(state: GameState, playerId: number, direction: Direction, _now: number): GameState {
   if (state.status !== "playing") return state
 
   const player = state.players.find((p) => p.id === playerId)
   if (!player || !player.alive) return state
-  if (now - player.lastMoveAt < MOVE_COOLDOWN_MS) return state
 
-  const delta = DIRECTION_DELTAS[direction]
-  const target: Position = { row: player.position.row + delta.row, col: player.position.col + delta.col }
+  // Always face the pressed direction, even if blocked.
+  let changed = player.facing !== direction
 
-  if (!inBounds(target)) return state
-  if (state.grid[target.row][target.col] !== "floor") return state
-  if (hasBombAt(state, target)) return state
+  // Can only pick a new target cell when centered on the current one.
+  if (isAligned(player)) {
+    const delta = DIRECTION_DELTAS[direction]
+    const target: Position = { row: player.position.row + delta.row, col: player.position.col + delta.col }
+    const open =
+      inBounds(target) && state.grid[target.row][target.col] === "floor" && !hasBombAt(state, target)
+    if (open) {
+      const players = state.players.map((p) =>
+        p.id === playerId ? { ...p, position: target, facing: direction } : p,
+      )
+      return { ...state, players }
+    }
+  }
 
-  const players = state.players.map((p) =>
-    p.id === playerId ? { ...p, position: target, lastMoveAt: now } : p,
-  )
+  if (!changed) return state
+  const players = state.players.map((p) => (p.id === playerId ? { ...p, facing: direction } : p))
   return { ...state, players }
+}
+
+/**
+ * Advance every player's smooth render position toward its target cell. Called
+ * once per frame with the elapsed time in seconds.
+ */
+export function tickMovement(state: GameState, dtSeconds: number): GameState {
+  if (state.status !== "playing") return state
+
+  const step = MOVE_SPEED * dtSeconds
+  let changed = false
+
+  const players = state.players.map((p) => {
+    if (!p.alive) return p
+    const dx = p.position.col - p.x
+    const dy = p.position.row - p.y
+    if (dx === 0 && dy === 0) {
+      return p.moving ? ((changed = true), { ...p, moving: false }) : p
+    }
+    changed = true
+    let { x, y } = p
+    if (Math.abs(dx) <= step) x = p.position.col
+    else x += Math.sign(dx) * step
+    if (Math.abs(dy) <= step) y = p.position.row
+    else y += Math.sign(dy) * step
+    const stillMoving = x !== p.position.col || y !== p.position.row
+    return { ...p, x, y, moving: stillMoving }
+  })
+
+  return changed ? { ...state, players } : state
 }
 
 /**
@@ -135,12 +191,13 @@ export function placeBomb(state: GameState, playerId: number, now: number): Game
 
   const player = state.players.find((p) => p.id === playerId)
   if (!player || !player.alive) return state
-  if (hasBombAt(state, player.position)) return state
+  const cell = occupiedCell(player)
+  if (hasBombAt(state, cell)) return state
 
   const bomb = {
     id: `bomb-${bombCounter++}`,
     ownerId: playerId,
-    position: { ...player.position },
+    position: cell,
     placedAt: now,
     range: BLAST_RANGE,
   }
@@ -226,11 +283,12 @@ export function updateGame(state: GameState, now: number): GameState {
     createdAt: now,
   }
 
-  // Kill any player standing on a freshly blasted cell.
+  // Kill any player whose occupied cell overlaps a freshly blasted cell.
   const players = state.players.map((p) => {
     if (!p.alive) return p
-    const caught = newExplosionCells.some((c) => c.row === p.position.row && c.col === p.position.col)
-    return caught ? { ...p, alive: false } : p
+    const cell = occupiedCell(p)
+    const caught = newExplosionCells.some((c) => c.row === cell.row && c.col === cell.col)
+    return caught ? { ...p, alive: false, moving: false, diedAt: now } : p
   })
 
   const explosions = [

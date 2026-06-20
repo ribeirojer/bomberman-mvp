@@ -4,7 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Board } from "./Board"
 import { COLS, type GameState } from "@/game/types"
-import { createInitialState, movePlayer, placeBomb, resolveAction, updateGame } from "@/game/gameEngine"
+import {
+  createInitialState,
+  movePlayer,
+  placeBomb,
+  resolveAction,
+  tickMovement,
+  updateGame,
+} from "@/game/gameEngine"
 
 const GAME_KEYS = new Set([
   "w", "a", "s", "d", " ",
@@ -22,6 +29,8 @@ export function BombermanGame() {
   // an SSR/client hydration mismatch caused by Math.random() in the generator.
   const [state, setState] = useState<GameState | null>(null)
   const [cellSize, setCellSize] = useState(40)
+  // Bumped each frame while bombs are live, to drive the fuse pulse animation.
+  const [renderNow, setRenderNow] = useState(0)
 
   const stateRef = useRef<GameState | null>(state)
   const pressedKeys = useRef<Set<string>>(new Set())
@@ -88,16 +97,21 @@ export function BombermanGame() {
   // Main game loop.
   useEffect(() => {
     let frame: number
+    let last = performance.now()
 
-    const loop = () => {
+    const loop = (ts: number) => {
       const now = Date.now()
+      // Delta time in seconds, clamped so tab-switch stalls don't teleport players.
+      const dt = Math.min(0.05, (ts - last) / 1000)
+      last = ts
+
       let next = stateRef.current
       if (!next) {
         frame = requestAnimationFrame(loop)
         return
       }
 
-      // Apply held movement keys (engine throttles per player).
+      // 1. Apply held movement intents (only commits when a player is aligned).
       for (const key of pressedKeys.current) {
         const action = resolveAction(next.players, key)
         if (action && action.type === "move") {
@@ -105,13 +119,19 @@ export function BombermanGame() {
         }
       }
 
-      // Advance bombs / explosions / deaths.
+      // 2. Advance smooth render positions toward target cells.
+      next = tickMovement(next, dt)
+
+      // 3. Advance bombs / explosions / deaths.
       next = updateGame(next, now)
 
       if (next !== stateRef.current) {
         stateRef.current = next
         setState(next)
       }
+
+      // Keep the fuse pulse animating smoothly while bombs are ticking.
+      if (next.bombs.length > 0) setRenderNow(now)
 
       frame = requestAnimationFrame(loop)
     }
@@ -132,7 +152,7 @@ export function BombermanGame() {
     <div className="flex w-full flex-col items-center gap-6">
       <PlayerStatusBar state={state} />
 
-      <Board state={state} cellSize={cellSize} />
+      <Board state={state} cellSize={cellSize} now={renderNow} />
 
       {state.status === "over" && (
         <div className="rounded-lg border border-border bg-card px-6 py-3 text-center">
