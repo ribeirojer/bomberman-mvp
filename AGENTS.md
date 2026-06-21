@@ -2,15 +2,15 @@
 
 ## Quick commands
 
-- `pnpm dev` — start dev server (Next.js + Turbopack, port 3000)
-- `pnpm build` — production build (**ignores TypeScript errors**, see below)
-- `pnpm lint` — ESLint (**no config in repo; may fail**)
+- `npm run dev` — start dev server (Next.js + Turbopack, port 3000)
+- `npm run build` — production build (**ignores TypeScript errors**, see below)
+- `npm run lint` — ESLint (**no config in repo; may fail**)
 - `npx tsc --noEmit` — type-check (build skips this; do it yourself)
-- `pnpm dlx shadcn add <component>` — add a shadcn/ui component at `@/components/ui`
+- `npx shadcn add <component>` — add a shadcn/ui component at `@/components/ui`
 
 ## Architecture
 
-- **Next.js App Router** (v16), React 19, TypeScript 5.7, Tailwind CSS v4, pnpm
+- **Next.js App Router** (v16), React 19, TypeScript 5.7, Tailwind CSS v4, npm
 - `game/` — pure, framework-agnostic engine. No React, no DOM. Returns new state objects. Designed for future porting to WebSocket multiplayer.
 - `components/` — React UI. `BombermanGame.tsx` = local 2P mode; `OnlineGame.tsx` = networked multiplayer; `Lobby.tsx` = room creation/joining.
 - `app/` — Next.js pages/routes. `page.tsx` renders local/online toggle + `<BombermanGame />` or `<Lobby />`.
@@ -24,12 +24,12 @@
 ## Gotchas
 
 - **`next.config.mjs` has `typescript.ignoreBuildErrors: true`** — the build passes even with TS errors. Always run `npx tsc --noEmit` after changes.
-- **No ESLint config exists and `eslint` is not in devDependencies** — `pnpm lint` probably fails. Use `tsc` for validation.
+- **No ESLint config exists and `eslint` is not in devDependencies** — `npm run lint` probably fails. Use `tsc` for validation.
 - **SSR hazard**: `createInitialState()` calls `Math.random()`. The game state must only be created in `useEffect` (client-side) to avoid hydration mismatches.
 - **Tailwind v4**: no `tailwind.config.js`. Config lives in `app/globals.css` via `@theme inline {…}` and `:root`/`.dark` CSS variables. Custom colors (e.g., `bg-game-p1`, `bg-game-bomb`) are defined there.
 - **shadcn/ui uses `@base-ui/react`**, not Radix UI. The button import path is `@base-ui/react/button`. Do not import from `@radix-ui/*`.
-- **pnpm only** — the lockfile is `pnpm-lock.yaml`. No npm/yarn lockfiles.
-- **pnpm `overrides.hono`** pins `hono@4.12.25` for a transitive dep. Do not remove this override.
+- **npm only** — the lockfile is `package-lock.json`.
+- **npm `overrides.hono`** pins `hono@4.12.25` for a transitive dep. Do not remove this override.
 
 ## Game engine notes
 

@@ -5,7 +5,7 @@ import eslintConfigPrettier from "eslint-config-prettier"
 
 export default defineConfig([
   {
-    ignores: [".next/", "node_modules/", "pnpm-lock.yaml"],
+    ignores: [".next/", "node_modules/", "package-lock.json"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

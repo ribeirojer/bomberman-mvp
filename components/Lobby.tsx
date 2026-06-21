@@ -8,7 +8,6 @@ import { createRoom, createRoomCode, joinRoom } from "@/hooks/useSupabaseRealtim
 type LobbyState =
   | { phase: "menu" }
   | { phase: "creating" }
-  | { phase: "hosting"; roomCode: string }
   | { phase: "joining" }
   | { phase: "playing"; roomCode: string; isHost: boolean; playerId: number }
   | { phase: "error"; message: string }
@@ -26,7 +25,7 @@ export function Lobby() {
     const ok = await createRoom(code)
 
     if (ok) {
-      setLobbyState({ phase: "hosting", roomCode: code })
+      setLobbyState({ phase: "playing", roomCode: code, isHost: true, playerId: 1 })
     } else {
       setLobbyState({ phase: "error", message: "Failed to create room. Try again." })
     }
@@ -50,17 +49,6 @@ export function Lobby() {
     }
     setLoading(false)
   }, [joinCode])
-
-  const handleStartGame = useCallback(() => {
-    if (lobbyState.phase === "hosting") {
-      setLobbyState({
-        phase: "playing",
-        roomCode: lobbyState.roomCode,
-        isHost: true,
-        playerId: 1,
-      })
-    }
-  }, [lobbyState])
 
   const handleBackToLobby = useCallback(() => {
     setLobbyState({ phase: "menu" })
@@ -133,28 +121,6 @@ export function Lobby() {
         <div className="flex flex-col items-center gap-3" role="status" aria-live="polite">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground" />
           <p className="text-sm text-muted-foreground">Creating room…</p>
-        </div>
-      )}
-
-      {/* Hosting — waiting for guest */}
-      {lobbyState.phase === "hosting" && (
-        <div className="flex w-full flex-col items-center gap-4">
-          <div className="rounded-lg border-2 border-game-p2/40 bg-card px-8 py-6 text-center">
-            <p className="text-sm text-muted-foreground">Share this code with your opponent:</p>
-            <p className="mt-2 font-mono text-4xl font-bold tracking-widest text-foreground select-all">
-              {lobbyState.roomCode}
-            </p>
-          </div>
-
-          <p className="text-sm text-muted-foreground">Waiting for opponent to join…</p>
-
-          <Button onClick={handleStartGame} size="lg" className="mt-2">
-            Start Game
-          </Button>
-
-          <Button onClick={handleBackToLobby} variant="outline" size="sm">
-            Cancel
-          </Button>
         </div>
       )}
 

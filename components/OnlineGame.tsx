@@ -9,6 +9,7 @@ import {
   createInitialState,
   movePlayer,
   placeBomb,
+  resolveAction,
   tickMovement,
   updateGame,
 } from "@/game/gameEngine"
@@ -53,6 +54,7 @@ export function OnlineGame({ roomCode, isHost, playerId, onBackToLobby }: Online
   const stateRef = useRef<GameState | null>(state)
   const pressedKeys = useRef<Set<string>>(new Set())
   const remoteHeldKeys = useRef<Set<Direction>>(new Set())
+  const roomActive = useRef(false)
 
   const cellSize = useCellSize()
   const { isConnected, presenceCount, sendBroadcast, setOnBroadcast } = useSupabaseRealtime(
@@ -222,8 +224,10 @@ export function OnlineGame({ roomCode, isHost, playerId, onBackToLobby }: Online
       }
 
       for (const key of pressedKeys.current) {
-        const dir = KEY_TO_DIR[key]
-        if (dir) next = movePlayer(next, 1, dir, now)
+        const action = resolveAction(next.players, key)
+        if (action && action.type === "move") {
+          next = movePlayer(next, action.playerId, action.direction, now)
+        }
       }
 
       for (const dir of remoteHeldKeys.current) {
@@ -249,13 +253,22 @@ export function OnlineGame({ roomCode, isHost, playerId, onBackToLobby }: Online
   }, [isHost, gameStarted, sendBroadcast])
 
   // ---------------------------------------------------------------------------
-  // Clean up room on game over
+  // Clean up room on game over or when leaving
   // ---------------------------------------------------------------------------
   useEffect(() => {
+    if (gameStarted) roomActive.current = true
+
     if (state?.status === "over") {
       updateRoomStatus(roomCode, "finished")
+      roomActive.current = false
     }
-  }, [state?.status, roomCode])
+
+    return () => {
+      if (roomActive.current) {
+        updateRoomStatus(roomCode, "finished")
+      }
+    }
+  }, [state?.status, gameStarted, roomCode])
 
   // ---------------------------------------------------------------------------
   // Restart (host only)
