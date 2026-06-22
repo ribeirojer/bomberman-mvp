@@ -24,10 +24,4 @@ export interface StateMessage {
   state: GameState
 }
 
-export interface StartMessage {
-  type: "start"
-  hostPlayerId: number
-  guestPlayerId: number
-}
-
-export type BroadcastMessage = InputMessage | StateMessage | StartMessage
+export type BroadcastMessage = InputMessage | StateMessage

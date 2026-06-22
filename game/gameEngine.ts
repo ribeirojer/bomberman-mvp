@@ -37,6 +37,16 @@ const PLAYER_CONTROLS: PlayerControls[] = [
   { up: "arrowup", down: "arrowdown", left: "arrowleft", right: "arrowright", bomb: "enter" },
 ]
 
+const p2 = PLAYER_CONTROLS[1]
+export const GUEST_DIR_MAP: Record<string, Direction> = {
+  [p2.up]: "up",
+  [p2.down]: "down",
+  [p2.left]: "left",
+  [p2.right]: "right",
+}
+export const GUEST_BOMB_KEY = p2.bomb
+export const HOST_BOMB_KEY = PLAYER_CONTROLS[0].bomb
+
 let bombCounter = 0
 let explosionCounter = 0
 

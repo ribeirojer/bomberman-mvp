@@ -12,14 +12,15 @@
 
 - **Next.js App Router** (v16), React 19, TypeScript 5.7, Tailwind CSS v4, npm
 - `game/` — pure, framework-agnostic engine. No React, no DOM. Returns new state objects. Designed for future porting to WebSocket multiplayer.
-- `components/` — React UI. `BombermanGame.tsx` = local 2P mode; `OnlineGame.tsx` = networked multiplayer; `Lobby.tsx` = room creation/joining.
-- `app/` — Next.js pages/routes. `page.tsx` renders local/online toggle + `<BombermanGame />` or `<Lobby />`.
-- `lib/` — utilities: `cn()` and `supabase.ts` (Supabase JS client singleton).
-- `hooks/` — `useSupabaseRealtime.ts` manages Broadcast channel + Presence for a room.
+- `components/` — React UI. `OnlineGame.tsx` = networked multiplayer; `Lobby.tsx` = room creation/joining; `WaitingScreen.tsx`, `ConnectionStatus.tsx`, `GameOverBanner.tsx` = sub-components extracted from OnlineGame.
+- `app/` — Next.js pages/routes. `page.tsx` renders `<Lobby />` directly (online-only).
+- `lib/` — utilities: `cn()`, `supabase.ts` (Supabase JS client singleton), `supabaseActions.ts` (room CRUD operations).
+- `hooks/` — `useSupabaseRealtime.ts` manages Broadcast channel + Presence for a room; `useCellSize.ts` = responsive cell sizing.
+- Barrel exports: `game/index.ts`, `hooks/index.ts`, `lib/index.ts` re-export public APIs for cleaner imports.
 
 ### Path alias
 
-`@/*` maps to repo root `./*` (not `src/`). Imports like `@/game/types`, `@/lib/utils`, `@/components/BombermanGame`.
+`@/*` maps to repo root `./*` (not `src/`). Imports like `@/game/types`, `@/lib/utils`, `@/components/Lobby`.
 
 ## Gotchas
 
@@ -34,7 +35,7 @@
 ## Game engine notes
 
 - `game/gameEngine.ts` functions are pure: they take state + inputs, return new state.
-- `movePlayer` only commits to a new grid cell when the player is aligned (`isAligned`). Held keys are converted to movement intents each frame in `BombermanGame.tsx`.
+- `movePlayer` only commits to a new grid cell when the player is aligned (`isAligned`). Held keys are converted to movement intents each frame in `OnlineGame.tsx`.
 - `tickMovement` advances smooth render positions; `updateGame` advances bombs/explosions/deaths.
 - Timing: `BOMB_FUSE_MS = 3000`, `EXPLOSION_MS = 550`. The render loop uses `Date.now()` for bomb/explosion logic and `performance.now()` for delta time (clamped to 50ms to prevent teleport on tab-switch).
 

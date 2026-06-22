@@ -2,41 +2,39 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Board } from "./Board"
-import { PlayerStatusBar } from "./PlayerStatusBar"
-import type { Direction, GameState } from "@/game/types"
+import { Board } from "@/components/Board"
+import { PlayerStatusBar } from "@/components/PlayerStatusBar"
+import { WaitingScreen } from "@/components/WaitingScreen"
+import { ConnectionStatus } from "@/components/ConnectionStatus"
+import { GameOverBanner } from "@/components/GameOverBanner"
 import {
   createInitialState,
+  GUEST_BOMB_KEY,
+  GUEST_DIR_MAP,
+  HOST_BOMB_KEY,
   movePlayer,
   placeBomb,
   resolveAction,
   tickMovement,
   updateGame,
-} from "@/game/gameEngine"
+  type Direction,
+  type GameState,
+} from "@/game"
 import type { BroadcastMessage, InputMessage } from "@/game/networkTypes"
-import { useSupabaseRealtime, updateRoomStatus } from "@/hooks/useSupabaseRealtime"
+import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime"
+import { updateRoomStatus } from "@/lib/supabaseActions"
 import { useCellSize } from "@/hooks/useCellSize"
 
 const GUEST_PLAYER_ID = 2
 
-const KEY_TO_DIR: Record<string, Direction> = {
-  arrowup: "up",
-  arrowdown: "down",
-  arrowleft: "left",
-  arrowright: "right",
-}
-
 const GAME_KEYS = new Set([
+  HOST_BOMB_KEY,
   "w",
   "a",
   "s",
   "d",
-  " ",
-  "arrowup",
-  "arrowdown",
-  "arrowleft",
-  "arrowright",
-  "enter",
+  GUEST_BOMB_KEY,
+  ...Object.keys(GUEST_DIR_MAP),
 ])
 
 interface OnlineGameProps {
@@ -125,7 +123,7 @@ export function OnlineGame({ roomCode, isHost, playerId, onBackToLobby }: Online
       e.preventDefault()
       if (e.repeat) return
 
-      if (key === "enter") {
+      if (key === GUEST_BOMB_KEY) {
         sendBroadcast("game", {
           type: "input",
           playerId: GUEST_PLAYER_ID,
@@ -135,7 +133,7 @@ export function OnlineGame({ roomCode, isHost, playerId, onBackToLobby }: Online
         return
       }
 
-      const dir = KEY_TO_DIR[key]
+      const dir = GUEST_DIR_MAP[key]
       if (dir && !heldDirections.has(dir)) {
         heldDirections.add(dir)
         sendBroadcast("game", {
@@ -148,7 +146,7 @@ export function OnlineGame({ roomCode, isHost, playerId, onBackToLobby }: Online
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      const dir = KEY_TO_DIR[e.key.toLowerCase()]
+      const dir = GUEST_DIR_MAP[e.key.toLowerCase()]
       if (dir && heldDirections.has(dir)) {
         heldDirections.delete(dir)
         sendBroadcast("game", {
@@ -182,7 +180,7 @@ export function OnlineGame({ roomCode, isHost, playerId, onBackToLobby }: Online
 
       if (!stateRef.current) return
 
-      if (key === " ") {
+      if (key === HOST_BOMB_KEY) {
         const next = placeBomb(stateRef.current, 1, Date.now())
         stateRef.current = next
         setState(next)
@@ -341,69 +339,6 @@ export function OnlineGame({ roomCode, isHost, playerId, onBackToLobby }: Online
           Leave Room
         </Button>
       </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function WaitingScreen({
-  roomCode,
-  isHost,
-  presenceCount,
-  onBackToLobby,
-}: {
-  roomCode: string
-  isHost: boolean
-  presenceCount: number
-  onBackToLobby: () => void
-}) {
-  return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="rounded-lg border border-border bg-card px-6 py-4 text-center">
-        <p className="text-lg font-semibold text-card-foreground">Room: {roomCode}</p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {isHost
-            ? presenceCount < 2
-              ? "Waiting for opponent to join…"
-              : "Starting game…"
-            : "Waiting for host to start…"}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">Players connected: {presenceCount}/2</p>
-      </div>
-      <Button onClick={onBackToLobby} variant="outline" size="sm">
-        Leave Room
-      </Button>
-    </div>
-  )
-}
-
-function ConnectionStatus({ roomCode, isConnected }: { roomCode: string; isConnected: boolean }) {
-  return (
-    <div className="flex items-center gap-2 text-sm" aria-live="polite">
-      <span className="text-muted-foreground">
-        Room: <span className="font-mono font-semibold text-foreground">{roomCode}</span>
-      </span>
-      <span className="text-muted-foreground">|</span>
-      <span className={isConnected ? "text-green-500" : "text-destructive"}>
-        {isConnected ? "Connected" : "Disconnected"}
-      </span>
-    </div>
-  )
-}
-
-function GameOverBanner({ state }: { state: GameState }) {
-  return (
-    <div
-      className="rounded-lg border border-border bg-card px-6 py-3 text-center"
-      role="alert"
-      aria-live="assertive"
-    >
-      <p className="text-lg font-bold text-card-foreground">
-        {state.winnerId ? `Player ${state.winnerId} wins!` : "Draw — everyone got caught!"}
-      </p>
     </div>
   )
 }

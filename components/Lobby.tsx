@@ -2,8 +2,8 @@
 
 import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { OnlineGame } from "./OnlineGame"
-import { createRoom, createRoomCode, joinRoom } from "@/hooks/useSupabaseRealtime"
+import { OnlineGame } from "@/components/OnlineGame"
+import { createRoom, createRoomCode, joinRoom } from "@/lib/supabaseActions"
 
 type LobbyState =
   | { phase: "menu" }
@@ -54,7 +54,6 @@ export function Lobby() {
     setLobbyState({ phase: "menu" })
   }, [])
 
-  // Playing state — show the game
   if (lobbyState.phase === "playing") {
     return (
       <OnlineGame
@@ -68,7 +67,6 @@ export function Lobby() {
 
   return (
     <div className="flex w-full max-w-[420px] flex-col items-center gap-6">
-      {/* Title */}
       <div className="text-center">
         <h2 className="text-xl font-bold text-foreground">Multiplayer</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -76,7 +74,6 @@ export function Lobby() {
         </p>
       </div>
 
-      {/* Menu */}
       {lobbyState.phase === "menu" && (
         <div className="flex w-full flex-col gap-4">
           <Button onClick={handleCreate} size="lg" disabled={loading} className="w-full">
@@ -116,7 +113,6 @@ export function Lobby() {
         </div>
       )}
 
-      {/* Creating */}
       {lobbyState.phase === "creating" && (
         <div className="flex flex-col items-center gap-3" role="status" aria-live="polite">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground" />
@@ -124,7 +120,6 @@ export function Lobby() {
         </div>
       )}
 
-      {/* Error */}
       {lobbyState.phase === "error" && (
         <div className="flex flex-col items-center gap-3">
           <p className="text-sm font-medium text-destructive">{lobbyState.message}</p>
